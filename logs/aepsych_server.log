@@ -1,0 +1,74 @@
+[0;37m2025-04-16 16:11:33,055 [INFO   ] Note: NumExpr detected 64 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.[0m
+[0;37m2025-04-16 16:11:33,056 [INFO   ] NumExpr defaulting to 8 threads.[0m
+[0;37m2025-04-16 16:11:33,693 [INFO   ] Saving logs to path: logs[0m
+[0;37m2025-04-16 16:11:33,694 [INFO   ] Starting the AEPsychServer[0m
+[0;37m2025-04-16 16:11:33,694 [INFO   ] AEPsych Version: 0.8.0[0m
+[0;37m2025-04-16 16:11:33,694 [INFO   ] Setting the database path C:\Users\rezasaeedpour\Documents\bushveld\test.db[0m
+[0;37m2025-04-16 16:11:33,695 [INFO   ] Found DB at C:\Users\rezasaeedpour\Documents\bushveld\test.db, appending![0m
+[0;37m2025-04-16 16:11:33,725 [INFO   ] Server up, waiting for connections![0m
+[0;37m2025-04-16 16:11:33,725 [INFO   ] Ctrl-C to quit![0m
+[0;37m2025-04-16 16:11:33,726 [INFO   ] Waiting for connection...[0m
+[0;37m2025-04-16 16:11:50,408 [INFO   ] Connected by ('::1', 64707, 0, 0), waiting for messages...[0m
+[0;30m2025-04-16 16:11:50,533 [DEBUG  ] receive : result = b'{"version":"0.01","message":{"config_str":"[common]\\nparnames = [x, z, latencyMs]\\nlb = [-20, 0, 0]\\nub = [40, 60, 75]\\nstimuli_per_trial = 1\\noutcome_types = [binary]\\ntarget = 0.75\\n\\nstrategy_names = [init_strat, opt_strat]\\n\\n[init_strat]\\nmin_asks = 40\\ngenerator = SobolGenerator\\n\\n[opt_strat]\\nmin_asks = 955\\nrefit_every = 5\\ngenerator = OptimizeAcqfGenerator\\nacqf = EAVC\\nmodel = GPClassificationModel\\n\\n[GPClassificationModel]\\ninducing_size = 99\\nmean_covar_factory = default_mean_covar_factory\\nmax_fit_time = 1\\n\\n[OptimizeAcqfGenerator]\\nrestarts = 10\\nsamps = 1500\\nmax_gen_time = 1\\nuse_gpu = True\\n\\n[EAVC]\\ntarget = 0.75\\n"},"type":"setup","extra_info":null}'[0m
+[0;37m2025-04-16 16:11:50,564 [INFO   ] Got: {'version': '0.01', 'message': {'config_str': '[common]\nparnames = [x, z, latencyMs]\nlb = [-20, 0, 0]\nub = [40, 60, 75]\nstimuli_per_trial = 1\noutcome_types = [binary]\ntarget = 0.75\n\nstrategy_names = [init_strat, opt_strat]\n\n[init_strat]\nmin_asks = 40\ngenerator = SobolGenerator\n\n[opt_strat]\nmin_asks = 955\nrefit_every = 5\ngenerator = OptimizeAcqfGenerator\nacqf = EAVC\nmodel = GPClassificationModel\n\n[GPClassificationModel]\ninducing_size = 99\nmean_covar_factory = default_mean_covar_factory\nmax_fit_time = 1\n\n[OptimizeAcqfGenerator]\nrestarts = 10\nsamps = 1500\nmax_gen_time = 1\nuse_gpu = True\n\n[EAVC]\ntarget = 0.75\n'}, 'type': 'setup', 'extra_info': None}[0m
+[0;37m2025-04-16 16:11:50,595 [INFO   ] Received msg [setup][0m
+[0;30m2025-04-16 16:11:50,595 [DEBUG  ] got setup message![0m
+[33;20m2025-04-16 16:11:50,597 [WARNING] Parameter-specific bounds are incomplete, falling back to ub/lb in [common][0m
+[0;30m2025-04-16 16:11:50,608 [DEBUG  ] record_setup = [<DBMasterTable(unique_id=None), experiment_name=None, experiment_description=None, experiment_id=485e2e6c-da70-44d8-bc6f-48a5378e1a55)>][0m
+[0;30m2025-04-16 16:11:50,608 [DEBUG  ] record_setup = [<DbReplayTable(unique_id=None), timestamp=2025-04-16 16:11:50.608868, message_type=setup, master_table_id=None)>][0m
+[31;20m2025-04-16 16:11:51,287 [ERROR  ] Request '{'version': '0.01', 'message': {'config_str': '[common]\nparnames = [x, z, latencyMs]\nlb = [-20, 0, 0]\nub = [40, 60, 75]\nstimuli_per_trial = 1\noutcome_types = [binary]\ntarget = 0.75\n\nstrategy_names = [init_strat, opt_strat]\n\n[init_strat]\nmin_asks = 40\ngenerator = SobolGenerator\n\n[opt_strat]\nmin_asks = 955\nrefit_every = 5\ngenerator = OptimizeAcqfGenerator\nacqf = EAVC\nmodel = GPClassificationModel\n\n[GPClassificationModel]\ninducing_size = 99\nmean_covar_factory = default_mean_covar_factory\nmax_fit_time = 1\n\n[OptimizeAcqfGenerator]\nrestarts = 10\nsamps = 1500\nmax_gen_time = 1\nuse_gpu = True\n\n[EAVC]\ntarget = 0.75\n'}, 'type': 'setup', 'extra_info': None}' raised error ''acqf''!! Full traceback follows:[0m
+[31;20m2025-04-16 16:11:51,346 [ERROR  ] Traceback (most recent call last):
+  File "C:\\Users\\rezasaeedpour\\AppData\\Local\\anaconda3\\Lib\\site-packages\\aepsych\\server\\server.py", line 124, in _handle_queue
+    result = self.handle_request(request)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\\Users\\rezasaeedpour\\AppData\\Local\\anaconda3\\Lib\\site-packages\\aepsych\\server\\server.py", line 318, in handle_request
+    ret_val = MESSAGE_MAP[type](self, request)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rezasaeedpour\AppData\Local\anaconda3\Lib\site-packages\aepsych\server\message_handlers\handle_setup.py", line 149, in handle_setup
+    strat_id = configure(server, config=tempconfig)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rezasaeedpour\AppData\Local\anaconda3\Lib\site-packages\aepsych\server\message_handlers\handle_setup.py", line 91, in configure
+    response = _configure(server, usedconfig)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rezasaeedpour\AppData\Local\anaconda3\Lib\site-packages\aepsych\server\message_handlers\handle_setup.py", line 52, in _configure
+    server.strat = SequentialStrategy.from_config(config)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rezasaeedpour\AppData\Local\anaconda3\Lib\site-packages\aepsych\config.py", line 630, in from_config
+    return cls(**cls.get_config_options(config=config, name=name, options=options))
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rezasaeedpour\AppData\Local\anaconda3\Lib\site-packages\aepsych\strategy\sequential.py", line 155, in get_config_options
+    strat = Strategy.from_config(config, str(name))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rezasaeedpour\AppData\Local\anaconda3\Lib\site-packages\aepsych\config.py", line 630, in from_config
+    return cls(**cls.get_config_options(config=config, name=name, options=options))
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rezasaeedpour\AppData\Local\anaconda3\Lib\site-packages\aepsych\strategy\strategy.py", line 570, in get_config_options
+    options = super().get_config_options(config=config, name=name, options=options)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rezasaeedpour\AppData\Local\anaconda3\Lib\site-packages\aepsych\config.py", line 588, in get_config_options
+    value = object_cls.from_config(config, object_cls.__name__)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rezasaeedpour\AppData\Local\anaconda3\Lib\site-packages\aepsych\config.py", line 630, in from_config
+    return cls(**cls.get_config_options(config=config, name=name, options=options))
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\rezasaeedpour\AppData\Local\anaconda3\Lib\site-packages\aepsych\generators\base.py", line 221, in get_config_options
+    options.update({"acqf_kwargs": cls._get_acqf_options(options["acqf"], config)})
+                                                         ~~~~~~~^^^^^^^^
+KeyError: 'acqf'
+[0m
+[0;37m2025-04-16 16:11:51,348 [INFO   ] Sending: {"server_error": "KeyError('acqf')", "message": {"version": "0.01", "message": {"config_str": "[common]\nparnames = [x, z, latencyMs]\nlb = [-20, 0, 0]\nub = [40, 60, 75]\nstimuli_per_trial = 1\noutcome_types = [binary]\ntarget = 0.75\n\nstrategy_names = [init_strat, opt_strat]\n\n[init_strat]\nmin_asks = 40\ngenerator = SobolGenerator\n\n[opt_strat]\nmin_asks = 955\nrefit_every = 5\ngenerator = OptimizeAcqfGenerator\nacqf = EAVC\nmodel = GPClassificationModel\n\n[GPClassificationModel]\ninducing_size = 99\nmean_covar_factory = default_mean_covar_factory\nmax_fit_time = 1\n\n[OptimizeAcqfGenerator]\nrestarts = 10\nsamps = 1500\nmax_gen_time = 1\nuse_gpu = True\n\n[EAVC]\ntarget = 0.75\n"}, "type": "setup", "extra_info": null}}[0m
+[0;30m2025-04-16 16:12:09,513 [DEBUG  ] receive : result = b'{"message":"","type":"exit","extra_info":null}'[0m
+[0;37m2025-04-16 16:12:09,528 [INFO   ] Got: {'message': '', 'type': 'exit', 'extra_info': None}[0m
+[0;37m2025-04-16 16:12:09,559 [INFO   ] Received msg [exit][0m
+[0;37m2025-04-16 16:12:09,560 [INFO   ] got termination message![0m
+[0;37m2025-04-16 16:12:09,561 [INFO   ] Sending: {"termination_type": "Terminate", "success": true}[0m
+[31;20m2025-04-16 16:12:09,562 [ERROR  ] Got Ctrl+C, exiting![0m
+Traceback (most recent call last):
+  File "C:\\Users\\rezasaeedpour\\AppData\\Local\\anaconda3\\Lib\\site-packages\\aepsych\\server\\server.py", line 503, in start_server
+    startServerAndRun(
+  File "C:\\Users\\rezasaeedpour\\AppData\\Local\\anaconda3\\Lib\\site-packages\\aepsych\\server\\server.py", line 405, in startServerAndRun
+    server.serve()
+  File "C:\\Users\\rezasaeedpour\\AppData\\Local\\anaconda3\\Lib\\site-packages\\aepsych\\server\\server.py", line 166, in serve
+    sys.exit(0)
+SystemExit: 0
+[0;37m2025-04-16 16:12:09,563 [INFO   ] Terminated input thread[0m

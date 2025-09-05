@@ -1,0 +1,83 @@
+==Release notes for Optimistic, Optimistic VF==
+
+Compiler of release notes: Dalton Maag
+Designer: Dalton Maag
+Designer URL: daltonmaag.com
+
+Release date: 2023-12-18
+
+Change log:
+- v5.000:
+    - Added a Width axis to the Text family with Instances at 80%, 90% and 95%.
+    - Changed the shape of the K, k and all related glyphs from a converging to an offset leg structure.
+    - Removed 'Text' from the family name and retired the Display variant.
+    - Reordered the elements in the style name to match the pattern: Weight Name - Slant Name - Dark Mode Name - Width Name
+    - Expanded the weight portion of the style name from abbreviated to the full name.
+    - Changed the Slant axis (interpolatable) to an Italic axis (binary on/off).
+
+- v4.000:
+    - Merged the Upright and Italic fonts into an individual VF file for each of the Text and Display variants.
+    - Added SemiBold and SemiBold Italic to the Text, adds Regular and Italic to the Display and removes the ExtraLight so that the two Optical Sizes have weight parity.
+    - Added a grade axis 
+    - Updated the Oslash/oslash so the bar now goes all the way through.
+    - The SemiCondensed SemiBold and the Outline XBold have not been included as they are stand-alone static fonts.
+
+- v3.000 (Text - Static Only): Added SemiCondensed width in SemiBold weight (Latin only).
+- v2.000 (Text): Added Cyrillic support (Uprights only) and Italics (Latin only)
+- v1.100 (Text): Added Vietnamese support; shortened style names.
+- v1.000 (Text): This is the first release.
+
+- v3.000 (Display - Static Only): Added the Outline XBold.
+- v2.000 (Display): Added Cyrillic support (Uprights only) and Italics (Latin only); added SemiCondensed width in SemiBold weight (Latin only).
+- v1.300 (Display): Added Vietnamese support; shortened font family and style names.
+- v1.200 (Display): Added SemiBold weight.
+- v1.101 (Display): Standard ligatures (liga) feature changed to discretionary ligatures (dlig).
+- v1.100 (Display): Default g and alternate g swapped; Numerators and denominators, on-the-fly fraction feature added; Dollar and cent changed to have full bars.
+- v1.100-b1 (Display): ExtraLight and ExtraBold weights added; Variable font added.
+
+Basic information
+1 Font name:
+    - Static: Optimistic
+    - Variable: Optimistic VF
+2 TrueType Version record: 5.000
+3 Character set: All European Latin
+4 Supported scripts: Latin
+5 Number of glyphs: 451
+6 Static weights: Light, Regular, Medium, SemiBold, Bold, ExtraBold
+7 Usage: Text and Display
+8 Number of axes: 4
+9 Axes:
+    - Dark Mode
+        tag: DRKM
+        range: 0 (Normal) - 1 (DM)
+    - Width
+        tag: wdth
+        range: 80 (Cd) - 100 (Normal)
+    - Weight
+        tag: wght
+        range: 300 (Lt) - 800 (XBd)
+    - Italic
+        tag: ital
+        range:  0 (Upright) - 1 (It)
+10 Named instances:
+    Light 80, Light It 80, Regular 80, It 80, Medium 80, Medium It 80, SemiBold 80, SemiBold It 80, Bold 80, Bold It 80, ExtraBold 80, ExtraBold It 80
+    Light 90, Light It 90, Regular 90, It 90, Medium 90, Medium It 90, SemiBold 90, SemiBold It 90, Bold 90, Bold It 90, ExtraBold 90, ExtraBold It 90
+    Light 95, Light It 95, Regular 95, It 95, Medium 95, Medium It 95, SemiBold 95, SemiBold It 95, Bold 95, Bold It 95, ExtraBold 95, ExtraBold It 95
+    Light, Light It, Regular, It, Medium, Medium It, SemiBold, SemiBold It, Bold, Bold It, ExtraBold, ExtraBold It
+    Light DM 80, Light It DM 80, Regular DM 80, It DM 80, Medium DM 80, Medium It DM 80, SemiBold DM 80, SemiBold It DM 80, Bold DM 80, Bold It DM 80, ExtraBold DM 80, ExtraBold It DM 80
+    Light DM 90, Light It DM 90, Regular DM 90, It DM 90, Medium DM 90, Medium It DM 90, SemiBold DM 90, SemiBold It DM 90, Bold DM 90, Bold It DM 90, ExtraBold DM 90, ExtraBold It DM 90
+    Light DM 95, Light It DM 95, Regular DM 95, It DM 95, Medium DM 95, Medium It DM 95, SemiBold DM 95, SemiBold It DM 95, Bold DM 95, Bold It DM 95, ExtraBold DM 95, ExtraBold It DM 95
+    Light DM, Light It DM, Regular DM, It DM, Medium DM, Medium It DM, SemiBold DM, SemiBold It DM, Bold DM, Bold It DM, ExtraBold DM, ExtraBold It DM
+
+Technology
+1 File formats:
+    - Static: The files have been delivered in the TrueType-based OpenType format, for use in all major Operating Systems, and also as TTF for use in apps, and in web font format: WOFF; WOFF2.
+    - Variable: The files have been delivered as variable fonts in the TrueType-based OpenType format, for use in all major Operating Systems, and also as TTF for use in apps, and in web font format: WOFF2.
+2 Embedding settings: Editing of the document is allowed (editable mode), subsetting is allowed.
+3 Screen optimization information: PixelFix CTAA screen optimization technology
+4 Default numerals: Proportional. Tabular figures accessible via OpenType features.
+
+Other information
+The fonts contain the following OpenType Stylistic Sets:
+  - ss01: Alternate ampersand
+  - ss02: Alternate a and g

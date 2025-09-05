@@ -1,0 +1,765 @@
+"""
+This script contains the code for the Time To Fuse paradigm used in Margaret river (python version 3.8.19).
+It has two stimulus types, a text mode (the one used in Margaret river) and an image mode
+you can choose between 3 discrete VID conditions. This is because the text is prerenderd and the size cannot be reliably changed by python (well maybe it can, but this hasn't been tested)
+There are two anaglyph modes depending on whether you're using the cardboard glasses found readily in the office, or the two pairs of plastic glasses we bought for the APS open house
+The difficulty parameter only changes the difficulty during the practice trials (it allows for smaller duration and larger magnitudes of VBD). The parameters during the experimental trials are always controlled by AEPsych
+When mode is set to "debug", anaglyph compatible text will be displayed. Otherwise, text colour is white
+Left, right and back screens: python is inconsistent with screen numbers, and seemingly randomly assigns them to connected monitors. MonitorIdentifier.py can be run to reveal which number corresponds to which screen, so you can properly assign the left right and back screens properly
+"""
+
+from psychopy import core, data, event, gui, prefs, sound, visual, monitors, colors
+from psychopy.tools.filetools import fromFile, toFile
+
+from datetime import datetime
+import numpy as np
+import pandas as pd
+import math
+from random import choice, randrange, uniform
+import socket
+import json
+import os
+import os.path
+
+
+prefs.general['audioLib'] = ['sounddevice']
+prefs.hardware['audioLib']=['sounddevice']
+
+
+
+# ==========================
+# DEFINE SOME KEY PARAMETERS (most are controlled by the gui and are found below)
+# ==========================
+
+##directory location of the current experiment (which needs to be a subfolder within the margaret-river folder). The structure of the margaret-river folder is important for this experiment to run correctly
+#dir = 'C:/Users/frl/Documents/Margaret River/Time To Fuse/'
+dir = 'C:\\Users\\rezasaeedpour\\Documents\\GitHub\\Convergence_Time\\'
+
+
+## Vertical disparity parameters
+constantOffset          =   0.0     ## arcmin
+
+## image Parameters
+imageSize               =   5.0    ## degrees
+
+#background contrast
+bgContrast = 0.5
+
+
+
+## list of possible parameters (to display in the gui)
+vidList = ['57','100','139']
+stimList = ['word','image']
+locList = ['desk','lab']
+modeList = ['debug','test']
+bgList = ['off','pinknoise','deadleaves']
+practiceList = ['on','off']
+
+## function to reorder lists which helps keep dropdown menus while remembering the previously used parameters
+def move_to_front(lst, item):
+    lst.remove(item)
+    lst.insert(0, item)
+    return lst
+
+## Define session parameters. Check to see if a file containing previously used parameters can be found
+try:
+    sessionInfoTemp = fromFile(dir+'lastInfo.pickle')
+
+    sessionInfo = {
+    'Left, Right, and Back Screens': sessionInfoTemp['Left, Right, and Back Screens'],
+    'participantID':sessionInfoTemp['participantID'],
+    'Horizontal Disparity (arcmin)': sessionInfoTemp['Horizontal Disparity (arcmin)'],
+    'Gap Between Stimuli (deg)': sessionInfoTemp['Gap Between Stimuli (deg)'],
+    'VID (cm)': move_to_front(vidList, sessionInfoTemp['VID (cm)']),
+    'Stim Type': move_to_front(stimList, sessionInfoTemp['Stim Type']),
+    'Location': move_to_front(locList, sessionInfoTemp['Location']),
+    'Mode': move_to_front(modeList, sessionInfoTemp['Mode']),
+    'Background': move_to_front(bgList, sessionInfoTemp['Background']),
+    'Practice Session': move_to_front(practiceList, sessionInfoTemp['Practice Session'])
+
+
+    }
+except:
+    sessionInfo = {
+        'Left, Right, and Back Screens': '1 2 3',
+        'participantID':'999',
+        'Horizontal Disparity (arcmin)': '5',
+        'Gap Between Stimuli (deg)': '8',
+        'VID (cm)': vidList,
+        'Stim Type': stimList,
+        'Location': locList,
+        'Mode': modeList,
+        'Background': bgList,
+        'Practice Session': practiceList
+
+
+        }
+
+sessionInfo['Difficulty'] = ['easy','hard']
+sessionInfo['Anaglyph Type'] = ['plastic','cardboard']
+sessionInfo['date'] = data.getDateStr(format="%Y-%m-%d-%H%M")
+
+
+Order = ['date','Left, Right, and Back Screens','participantID', 'Horizontal Disparity (arcmin)', 'Gap Between Stimuli (deg)', 'VID (cm)', 'Practice Session', 'Background']
+## Present a dialogue to change params
+dlg = gui.DlgFromDict(sessionInfo, title='Project Margaret River TTF Task', order=Order, fixed=['date'])
+if dlg.OK:
+    completeName = os.path.join(dir, 'lastInfo.pickle')
+    toFile(completeName, sessionInfo)
+else:
+    core.quit()
+
+
+## Set parameters based on gui choices
+viewDistance = int(sessionInfo['VID (cm)'])
+hDisparityMagnitude = int(sessionInfo['Horizontal Disparity (arcmin)'])
+stimSpacing = int(sessionInfo['Gap Between Stimuli (deg)'])
+loc = sessionInfo['Location']
+mode = sessionInfo['Mode']
+
+if sessionInfo['Stim Type'] == 'word':
+    stimType = 'w'
+elif sessionInfo['Stim Type'] == 'image':
+    stimType = 'i'
+
+if sessionInfo['Background'] != 'off':
+    background = "on"
+    bgType = sessionInfo['Background']
+else:
+    background = "off"
+
+if sessionInfo['Practice Session'] == 'on':
+    practice = True
+else:
+    practice = False
+
+## demo parameters (changes the difficulty of the )
+if sessionInfo['Difficulty'] == 'easy':
+    easy = True
+elif sessionInfo['Difficulty'] == 'hard':
+    easy = False
+
+
+## screen numbers python has assigned to various screens when doing a multi-monitor setup.
+## This is at the top for easy access since python likes to randomize these
+screens = sessionInfo['Left, Right, and Back Screens'].split()
+screenLeft = int(screens[0])
+screenRight = int(screens[1])
+screenBack = int(screens[2])
+
+
+numPracticeTrials = 100
+
+
+
+# ==========================
+# INITIALIZE THE EXPERIMENT
+# ==========================
+
+## Initialize disparity
+global currentDisparity
+global disparityAmplitude
+global stimulusDuration
+
+
+## Set location to lab or desk and adjust directories/monitors accordingly
+if loc == "lab":
+    monWidth = 4096
+    monHeight = 2160
+    monWidthCM = 69.85
+    BmonWidth = 3840
+    BmonHeight = 2160
+    BmonWidthCM = 165
+    col = (1,1,1)
+
+elif loc == "desk":
+    monWidth = 2560
+    monHeight = 1600
+    monWidthCM = 40
+    ##defining different colors so that analglygh glasses can be used for dichoptic presentation
+
+def ease_in_out(progress):
+    # Smoothstep (S-curve) easing: 3x^2 - 2x^3
+    return 3 * progress**2 - 2 * progress**3
+
+
+## Commence setup of functions for AEPsych
+continue_if_data = 'yes'
+
+
+globalClock = core.Clock()
+
+
+
+
+
+
+if mode == "test":
+    Bmon = monitors.Monitor("backgroundMonitor")
+    Bmon.setWidth = (BmonWidthCM)
+    Bmon.setSizePix((BmonWidth, BmonHeight))
+    Bmon.setDistance(viewDistance)
+    Bmon.saveMon()
+    mon = monitors.Monitor("testMonitor")
+else:
+    mon = monitors.Monitor("debugMonitor")
+
+mon.setWidth = (monWidthCM)
+mon.setSizePix((monWidth, monHeight))
+mon.setDistance(viewDistance)
+mon.saveMon()
+
+
+## Set mode to debug (single monitor) or test (dual monitor)
+if mode == "debug":
+
+    winLeft = visual.Window(
+        size=[monWidth, monHeight],
+        color='grey',
+        monitor=mon,
+        units="deg",
+        screen=1,
+        blendMode="add",
+        useFBO=True,
+        gammaErrorPolicy="ignore",
+        fullscr=False)
+
+    mirrorStimulus = False
+    if sessionInfo['Anaglyph Type'] == 'cardboard':
+        col = colors.Color('#038080','hex').rgb
+        col2 = colors.Color('#850505','hex').rgb
+    elif sessionInfo['Anaglyph Type'] == 'plastic':
+        col = colors.Color('#850080','hex').rgb
+        col2 = colors.Color('#308285','hex').rgb
+
+
+if mode == "test":
+
+    winLeft = visual.Window(
+        size=[monWidth, monHeight],
+        color=(-.93,-.93,-.93), #this color was used to ensure the black level of virtual content was 1 nit
+        colorSpace='rgb',
+        monitor=mon,
+        units="deg",
+        gammaErrorPolicy="warn",
+        screen=screenLeft,
+        fullscr=True)
+
+    winRight = visual.Window(
+        size=[monWidth, monHeight],
+        color=(-.93,-.93,-.93),
+        colorSpace='rgb',
+        monitor=mon,
+        units="deg",
+        gammaErrorPolicy="warn",
+        screen=screenRight,
+        fullscr=True)
+
+
+    mirrorStimulus = True
+    col = (1,1,1)
+
+
+
+
+
+
+## define image to show when AEPsych is warming up
+bg_image = dir+'/assets/bg_image.png'
+AEP_image = visual.ImageStim(
+    win=winLeft,
+    name='AEP_image', units='norm',
+    image=bg_image, mask=None, anchor='center',
+    ori=0.0, pos=(0, 0), size=(2, 2),
+    color=[1,1,1], colorSpace='rgb', opacity=None,
+    flipHoriz=False, flipVert=False,
+    texRes=128.0, interpolate=True, depth=-1.0)
+
+
+
+# --- Prepare to start Routine "AEPsychLauch" ---
+continueRoutine = True
+
+
+
+
+## Listing our stimulus files
+if stimType == 'w':
+
+    nonsensePath = dir + "assets/Words/" + str(loc) + "/Nonsense/" + str(viewDistance) + "/"
+    nonsenseWordFiles = os.listdir(nonsensePath)
+    wordPath = dir + "assets/Words/" + str(loc) + "/Real/" + str(viewDistance) + "/"
+    wordFiles = os.listdir(wordPath)
+
+
+elif stimType == 'i':
+    flowerFiles = os.listdir(dir+'assets/Flowers/Cropped Images')
+    birdFiles = os.listdir(dir+'assets/Birds/Cropped Images')
+
+
+
+# ==================
+# SCREEN CALIBRATION
+# ==================
+# If ipd_calibration_vernier.py hasn't been run for this participant, use secondary calibration method (faster, but less accurate)
+
+# Defining function to read in most recent calibration data from ipd_correction.csv (should there be one)
+def csv_to_binocular_offset(ipd_csv, subject_name, units='pix'):
+    if isinstance(ipd_csv, str):
+        ipd_csv = pd.read_csv(ipd_csv)
+    # Filter by subject name
+    subject_data = ipd_csv.query("subject_name==@subject_name")
+    # Find the most recent session
+    max_session = subject_data['session'].max()
+    # Filter by the most recent session
+    recent_session_data = subject_data.query("session==@max_session")
+    # Calculate the mean binocular offset
+    binocular_offset = [
+        recent_session_data[f"ipd_correction_{units}_horizontal"].mean(),
+        recent_session_data[f"ipd_correction_{units}_vertical"].mean()
+    ]
+    return binocular_offset
+
+# this ppd calculation has one use: to apply the horizontal and vertical offsets measured during calibration to the instruction text
+# I can't define this text in degrees since I don't want the text to change size based on viewing distance, so I use ppd to apply offset in pixels
+ppd = math.pi * (monWidth) / math.atan(monWidthCM/viewDistance/2) / 360
+constantOffset = constantOffset/60
+
+# I want to access the parent folder of the experiment so I can minimize the amount of manual path editing. The below function is run twice, because the
+# first time it only removes the / at the end of the dir path without acutally returning the parent folder
+# parent = os.path.dirname(dir)
+# parent = os.path.dirname(parent)
+
+offsetPath = dir + "/haploscope_utils/ipd_correction.csv"
+offsets = np.asarray(csv_to_binocular_offset(offsetPath, sessionInfo['participantID']))
+
+print(offsets)
+
+if not math.isnan(offsets[0]):
+
+    #convert offsets from pix to deg. Using pix means we don't have to calculate a different offset for different viewing distances
+    offsetHorizontalpx = offsets[0]
+    offsetVerticalpx = offsets[1]
+    offsets = offsets/ppd
+    offsetHorizontal = offsets[0]
+    offsetVertical = offsets[1]
+
+
+else: #perform the backup calibration procedure (aligning an + inside a circle)
+    ## Initialize the offset
+    ## Initialize offset
+    initialOffsetVertical      = -1.8 ## arcmin
+    initialOffsetHorizontal    = -1.1 ## arcmin
+    offsetHorizontal = initialOffsetHorizontal + round(uniform(-10,10)/10, 1)
+    offsetVertical = initialOffsetHorizontal + round(uniform(-10,10)/10, 1)
+    print("Initial vertical offset set to " + str(offsetVertical))
+    print("Initial horizontal offset set to " + str(offsetHorizontal))
+    global finishedOffset
+
+
+    finishedOffset = False
+    ## Allow participant to adjust the offset
+    while finishedOffset == False:
+
+        ## Show target icons (circle and +)
+        if mode=="debug":
+            offsetLeft = visual.TextStim(winLeft, text=u'\u25EF', font="consolas", units='deg', pos=(0,0), height=0.75, wrapWidth=40, color=col, colorSpace='rgb')
+            offsetRight = visual.TextStim(winLeft, text="+", font="consolas", units='deg', pos=(offsetHorizontal,offsetVertical+0.1), height=1, wrapWidth=40, color=col2, colorSpace='rgb')
+            offsetTextL = visual.TextStim(winLeft, text='Use arrow keys to adjust the plus symbol until it\'s cetered within the circle. \n Press the spacebar when finished.', font="Optimistic Display", units='pix', pos=(0,-(monHeight*.25)), height=50, wrapWidth=monWidth*.75, color=(1,1,1), colorSpace='rgb', flipHoriz=mirrorStimulus)
+            offsetLeft.draw()
+            offsetRight.draw()
+            offsetTextL.draw()
+            winLeft.flip()
+        elif mode=="test":
+            circle = visual.Circle(winLeft, radius=0.5, units='deg', pos=(0,0), fillColor=(1,0,0), lineColor=(1,0,0))
+
+            # offsetLeft = visual.TextStim(winLeft, text=u'\u25EF', font="consolas", units='deg', pos=(0,0), height=0.75, wrapWidth=40, color=(1,1,1), colorSpace='rgb')
+            offsetRight = visual.TextStim(winRight, text="+", font="consolas", units='deg', pos=(offsetHorizontal,offsetVertical+0.1), height=1, wrapWidth=40, color=(1,1,1), colorSpace='rgb')
+            offsetTextL = visual.TextStim(winLeft, text='Use the arrow keys to adjust the plus symbol until it\'s cetered within the circle. \n Press the spacebar when finished.', font="Optimistic Display", units='pix', pos=(0,-(monHeight*.25)), height=50, wrapWidth=monWidth*.75, color=(1,1,1), colorSpace='rgb', flipHoriz=mirrorStimulus)
+            offsetTextR = visual.TextStim(winRight, text='Use the arrow keys to adjust the plus symbol until it\'s cetered within the circle. \n Press the spacebar when finished.', font="Optimistic Display", units='pix', pos=(0,-(monHeight*.25)), height=50, wrapWidth=monWidth*.75, color=(1,1,1), colorSpace='rgb', flipHoriz=mirrorStimulus)
+            # offsetLeft.draw()
+            offsetRight.draw()
+            offsetTextL.draw()
+            offsetTextR.draw()
+            winLeft.flip()
+            winRight.flip()
+            # winBack.flip()
+            circle.draw()
+
+        ## Check for keypresses and adjust
+        keys = event.getKeys()
+        if len(keys):
+            print(keys)
+        if 'up' in keys:
+            offsetVertical = offsetVertical+0.1
+            print("Vertical offet increased to " + str(offsetVertical))
+        if 'down' in keys:
+            offsetVertical = offsetVertical-0.1
+            print("Vertical offet decreased to " + str(offsetVertical))
+        if 'left' in keys and mirrorStimulus == False:
+            offsetHorizontal = offsetHorizontal-0.1
+            print("Horizontal offet changed to " + str(offsetHorizontal))
+        if 'left' in keys and mirrorStimulus == True:
+            offsetHorizontal = offsetHorizontal+0.1
+            print("Horizontal offet changed to " + str(offsetHorizontal))
+        if 'right' in keys and mirrorStimulus == False:
+            offsetHorizontal = offsetHorizontal+0.1
+            print("Horizontal offet changed to " + str(offsetHorizontal))
+        if 'right' in keys and mirrorStimulus == True:
+            offsetHorizontal = offsetHorizontal-0.1
+            print("Horizontal offet changed to " + str(offsetHorizontal))
+
+        ## When participant presses spacebar, save the offsets and exit
+        if 'space' in keys:
+            finishedOffset = True
+            offsetHorizontalpx = offsetHorizontal*ppd
+            offsetVerticalpx = offsetVertical*ppd
+            # Add functions to save and record the offset here
+
+
+# backgroundPath = dir + 'assets/Backgrounds/1.Calling_Mock_Background.png'
+
+if background == 'on':
+    backgroundPath = dir + 'assets/Backgrounds/Noise/' + loc + '/' + bgType + '/'
+    backgroundFiles = os.listdir(backgroundPath)
+    backgroundFile = backgroundPath + backgroundFiles[randrange(0,len(backgroundFiles))]
+
+    #my program was crashing because it was reading in a non-existant background file every once in a while. Now, it re-selects a file every time the non-existant file is chosen
+     #this is also a possible issue for text stimuli images. However, I didn't implement a fix like this because I figured out how to get windows to stop generating thumbnails
+    while backgroundFile == 'C:/Users/frl/Documents/Margaret River/Time To Fuse/assets/Backgrounds/Noise/lab/deadleaves/Thumbs.db':
+       backgroundFile = backgroundPath + backgroundFiles[randrange(0,len(backgroundFiles))]
+
+
+
+    if mode == "debug":
+        # custom made borders are drawn on top of backgrounds. They have been constructed so that at every viewing distance, the background pattern subtends the same amount of visual field
+                #in debug mode, just use border for the furthest viewing distance (which is actually just a completely transparent image)
+                #this is because in debug mode, the background distance doesn't move relative to the text stimulus as it does in the haploscope
+        borderFile = dir + 'assets/Backgrounds/Borders/139.png'
+        backgroundIM = visual.ImageStim(winLeft, units="pix", image=backgroundFile, pos=(0,0),contrast=bgContrast)
+        borderIM = visual.ImageStim(winLeft, units="pix", image=borderFile, pos=(0,0))
+    elif mode == "test":
+        # custom made borders are drawn on top of backgrounds. They have been constructed so that at every viewing distance, the background pattern subtends the same amount of visual field
+        borderFile = dir + 'assets/Backgrounds/Borders/' + str(viewDistance) + '.png'
+        # backgroundIM = visual.ImageStim(winBack, units="pix", image=backgroundFile, pos=(0,0),contrast=bgContrast)
+        # borderIM = visual.ImageStim(winBack, units="pix", image=borderFile, pos=(0,0))
+
+# I could not get my custom tones to play. They were too quiet anyway, so not a big deal
+soundPathD = dir + 'assets/Tones/D.wav'
+#creating the fixation cross that is presented at the beginning of every trial, prompting the participant to initiate the trial
+plusL = visual.TextStim(winLeft, text='+', font="Optimistic Display", units='deg', pos=(offsetHorizontal,offsetVertical), height=1, wrapWidth=monWidth*.75, color=(1,1,1), colorSpace='rgb', flipHoriz=mirrorStimulus)
+if mode == 'test':
+    plusR = visual.TextStim(winRight, text='+', font="Optimistic Display", units='deg', pos=(0,0), height=1, wrapWidth=monWidth*.75, color=(1,1,1), colorSpace='rgb', flipHoriz=mirrorStimulus)
+
+# =========================================
+# SHOW INSTRUCTIONS AND DO PRACTICE SESSION
+# =========================================
+
+doneInstructions = False
+
+if practice:
+
+    #Selecting the words to be presented
+    if stimType == 'w':
+        word1 = wordPath + wordFiles[randrange(0,len(wordFiles))]
+        # word2 = nonsensePath + nonsenseWordFiles[randrange(0,len(nonsenseWordFiles))]
+        word2 = nonsensePath + nonsenseWordFiles[192]
+    elif stimType == 'i':
+        image1 = dir + 'assets/Flowers/Cropped Images/' + flowerFiles[randrange(0,len(flowerFiles))]
+        image2 = dir + 'assets/Birds/Cropped Images/' + birdFiles[randrange(0,len(birdFiles))]
+
+    #play tone before instructions are shown (mainly to initialize the audio engine)
+    #try:
+        ##try to play a tone indicating the second interval
+        #toneRecorded = sound.Sound(soundPathD)  # 500 Hz beep
+        #toneRecorded.play()
+    #except Exception as ex:
+        #don't play a sound
+     #   pass
+        #print(ex)
+
+    while doneInstructions == False:
+
+
+        hpos1 = (hDisparityMagnitude/2)/60
+        hpos2 = 0
+
+        #There is no need for VBD on the introductory screen, lets save that for the practice trials
+        currentDisparity = 0
+        vpose = 0
+
+
+        # #Blank screen
+        # if background == "on":
+        #     backgroundIM.draw()
+        #     borderIM.draw()
+        #     # if mode == "test":
+        #     #     winBack.flip()
+
+        ## Show stimulus example and task instructions
+        if mode == "test":
+            if stimType == 'w':
+                stimRight1 = visual.ImageStim(winRight, image=word1, units='deg', pos=((stimSpacing/2)+offsetHorizontal+hpos1,constantOffset+offsetVertical-currentDisparity/2), color=(1,1,1), colorSpace='rgb', flipHoriz=mirrorStimulus)
+                stimRight2 = visual.ImageStim(winRight, image=word2, units='deg', pos=((-stimSpacing/2)+offsetHorizontal+hpos2,constantOffset+offsetVertical-currentDisparity/2), color=(1,1,1), colorSpace='rgb', flipHoriz=mirrorStimulus)
+                beginTextR = visual.TextStim(winRight, text='On each trial, one of the two words will pop out (it will appear closer than the other).\nYour task is to identify whether the closer word is real or nonsense.\nPress 1 (the left key) for real or 3 (the right key) for nonsense.\nIn this case, the real word is closer, so the correct answer is 1 (left).\nPress space to start the practice session.', font="Optimistic Display", units='pix', pos=(0+offsetHorizontalpx,offsetVerticalpx-(monHeight*.17)), height=50, wrapWidth=monWidth*.75, color=(1,1,1), colorSpace='rgb', flipHoriz=mirrorStimulus)
+            elif stimType == 'i':
+                stimRight1 = visual.ImageStim(winRight, image=image1, units='deg', pos=((stimSpacing/2)+offsetHorizontal+hpos1,constantOffset+offsetVertical-currentDisparity/2),size=imageSize,colorSpace='rgb',flipHoriz=mirrorStimulus)
+                stimRight2 = visual.ImageStim(winRight, image=image2, units='deg', pos=((-stimSpacing/2)+offsetHorizontal+hpos2,constantOffset+offsetVertical-currentDisparity/2),size=imageSize,colorSpace='rgb',flipHoriz=mirrorStimulus)
+                beginTextR = visual.TextStim(winRight, text='On each trial, one of the two images will pop out (it will appear closer than the other).\nYour task is to identify whether the closer image is a flower or a bird.\nPress 1 (the left key) for flower or 3 (the right key) for bird.\nIn this case, the flower is closer, so the correct answer is 1 (left).\nPress space to start the practice session.', font="Optimistic Display", units='pix', pos=(0+offsetHorizontalpx,offsetVerticalpx-(monHeight*.17)), height=50, wrapWidth=monWidth*.75, color=(1,1,1), colorSpace='rgb', flipHoriz=mirrorStimulus)
+            beginTextR.draw()
+            stimRight1.draw()
+            stimRight2.draw()
+            winRight.flip()
+
+        elif mode == "debug":
+            if stimType == 'w':
+                stimRight1 = visual.ImageStim(winLeft, image=word1, units='deg', pos=((stimSpacing/2)+offsetHorizontal+hpos1,constantOffset+offsetVertical-currentDisparity/2), color=col2, colorSpace='rgb', flipHoriz=mirrorStimulus)
+                stimRight2 = visual.ImageStim(winLeft, image=word2, units='deg', pos=((-stimSpacing/2)+offsetHorizontal+hpos2,constantOffset+offsetVertical-currentDisparity/2), color=col2, colorSpace='rgb', flipHoriz=mirrorStimulus)
+            elif stimType == 'i':
+                stimRight1 = visual.ImageStim(winLeft, image=image1, units='deg', pos=((stimSpacing/2)+offsetHorizontal+hpos1,constantOffset+offsetVertical-currentDisparity/2),size=imageSize, color=col2, colorSpace='rgb', flipHoriz=mirrorStimulus)
+                stimRight2 = visual.ImageStim(winLeft, image=image2, units='deg', pos=((-stimSpacing/2)+offsetHorizontal+hpos2,constantOffset+offsetVertical-currentDisparity/2),size=imageSize, color=col2, colorSpace='rgb', flipHoriz=mirrorStimulus)
+            stimRight1.draw()
+            stimRight2.draw()
+
+        if stimType == 'w':
+            stimLeft1 = visual.ImageStim(winLeft, image=word1, units='deg', pos=((stimSpacing/2)-hpos1,0+currentDisparity/2), color=col, colorSpace='rgb', flipHoriz=mirrorStimulus)
+            stimLeft2 = visual.ImageStim(winLeft, image=word2, units='deg', pos=((-stimSpacing/2)-hpos2,0+currentDisparity/2), color=col, colorSpace='rgb', flipHoriz=mirrorStimulus)
+            beginTextL = visual.TextStim(winLeft, text='On each trial, one of the two words will pop out (it will appear closer than the other).\nYour task is to identify whether the closer word is real or nonsense.\nPress 1 (the left key) for real or 3 (the right key) for nonsense.\nIn this case, the real word is closer, so the correct answer is 1 (left).\nPress space to start the practice session.', font="Optimistic Display", units='pix', pos=(0,-(monHeight*.17)), height=50, wrapWidth=monWidth*.75, color=(1,1,1), colorSpace='rgb', flipHoriz=mirrorStimulus)
+        elif stimType == 'i':
+            stimLeft1 = visual.ImageStim(winLeft, image=image1, units='deg', pos=((stimSpacing/2)-hpos1,0+currentDisparity/2),size=imageSize,color=col, colorSpace='rgb', flipHoriz=mirrorStimulus)
+            stimLeft2 = visual.ImageStim(winLeft, image=image2, units='deg', pos=((-stimSpacing/2)-hpos2,0+currentDisparity/2),size=imageSize,color=col, colorSpace='rgb', flipHoriz=mirrorStimulus)
+            beginTextL = visual.TextStim(winLeft, text='On each trial, one of the two images will pop out (it will appear closer than the other).\nYour task is to identify whether the closer image is a flower or a bird.\nPress 1 (the left key) for flower or 3 (the right key) for bird.\nIn this case, the flower is closer, so the correct answer is (left).\nPress space to start the practice session.', font="Optimistic Display", units='pix', pos=(0,-(monHeight*.17)), height=50, wrapWidth=monWidth*.75, color=(1,1,1), colorSpace='rgb', flipHoriz=mirrorStimulus)
+        beginTextL.draw()
+        stimLeft1.draw()
+        stimLeft2.draw()
+        winLeft.flip()
+
+        ## Check for spacebar keypress
+        keys = event.getKeys()
+        if 'space' in keys:
+             doneInstructions = True
+        elif 'q' in keys:
+            if mode == 'test':
+                winRight.close()
+                # winBack.close()
+            winLeft.close()
+            # writeJSON(tellContent, tellFilename)
+            # tellContent = []
+            # SendExitMessage(AEPsychSocket)
+            # pAEPsych.kill()
+            # pAEPsych.terminate()
+
+            core.quit()
+
+
+# Run 'End Experiment' code from AEPsych
+#write out all of the tells to json file
+    if easy:
+        durRange = (.5, 2)
+        dispRange = (0,20)
+    else:
+        durRange = (.25, 1.5)
+        dispRange = (15,60)
+
+
+
+    #Show blank screen before practice session
+    # if background == "on":
+    #     backgroundIM.draw()
+    #     borderIM.draw()
+    if mode == "test":
+        winRight.flip()
+        # winBack.flip()
+        winLeft.flip()
+
+
+    trialNum = 0
+
+    #Do some practice trials
+    while trialNum <= numPracticeTrials:
+        trialNum += 1
+
+        #Selecting a random stimulus duration and vertical disparity for each practice trial
+        stimulusDuration = uniform(durRange[0],durRange[1])
+        currentDisparity = uniform(dispRange[0],dispRange[1])/60
+
+
+        ##deciding which word will be the real word (left or right?)
+        Choice = choice(["A", "B"])
+        if Choice == "A":
+            if stimType == 'w':
+                word1 = wordPath + wordFiles[randrange(0,len(wordFiles))]
+                word2 = nonsensePath + nonsenseWordFiles[randrange(0,len(nonsenseWordFiles))]
+            elif stimType == 'i':
+                image1 = dir + 'assets/Flowers/Cropped Images/' + flowerFiles[randrange(0,len(flowerFiles))]
+                image2 = dir + 'assets/Birds/Cropped Images/' + birdFiles[randrange(0,len(birdFiles))]
+        else:
+            if stimType == 'w':
+                word1 = nonsensePath + nonsenseWordFiles[randrange(0,len(nonsenseWordFiles))]
+                word2 = wordPath + wordFiles[randrange(0,len(wordFiles))]
+            elif stimType == 'i':
+                image1 = dir + 'assets/Birds/Cropped Images/' + birdFiles[randrange(0,len(birdFiles))]
+                image2 = dir + 'assets/Flowers/Cropped Images/' + flowerFiles[randrange(0,len(flowerFiles))]
+
+
+        ##deciding which word will pop out (real or nonsense?)
+        popOutChoice = choice(['real or flower', 'nonesense or bird'])
+        if popOutChoice == 'real or flower':
+            if Choice == "A":
+                hpos1 = (hDisparityMagnitude/2)/60
+                hpos2 = 0
+            else:
+                hpos1 = 0
+                hpos2 = (hDisparityMagnitude/2)/60
+        else:
+            if Choice == "A":
+                hpos1 = 0
+                hpos2 = (hDisparityMagnitude/2)/60
+            else:
+                hpos1 = (hDisparityMagnitude/2)/60
+                hpos2 = 0
+
+       #Generating stimuli for the trial
+        if stimType == 'w':
+            stimLeft1 = visual.ImageStim(winLeft, image=word1, units='deg', pos=((stimSpacing/2)-hpos1,0+currentDisparity/2), colorSpace='rgb', flipHoriz=mirrorStimulus)
+            stimLeft2 = visual.ImageStim(winLeft, image=word2, units='deg', pos=((-stimSpacing/2)-hpos2,0+currentDisparity/2), colorSpace='rgb', flipHoriz=mirrorStimulus)
+        elif stimType == 'i':
+            stimLeft1 = visual.ImageStim(winLeft, image=image1, units='deg', pos=((stimSpacing/2)-hpos1,0+currentDisparity/2),size=imageSize, colorSpace='rgb', flipHoriz=mirrorStimulus)
+            stimLeft2 = visual.ImageStim(winLeft, image=image2, units='deg', pos=((-stimSpacing/2)-hpos2,0+currentDisparity/2),size=imageSize, colorSpace='rgb', flipHoriz=mirrorStimulus)
+
+        if mode == "debug":
+            if stimType == 'w':
+                stimRight1 = visual.ImageStim(winLeft, image=word1, units='deg',pos=((stimSpacing/2)+offsetHorizontal+hpos1,constantOffset+offsetVertical-currentDisparity/2), color=col2, colorSpace='rgb', flipHoriz=mirrorStimulus)
+                stimRight2 = visual.ImageStim(winLeft, image=word2, units='deg',pos=((-stimSpacing/2)+offsetHorizontal+hpos2,constantOffset+offsetVertical-currentDisparity/2),color=col2, colorSpace='rgb', flipHoriz=mirrorStimulus)
+            elif stimType == 'i':
+                stimRight1 = visual.ImageStim(winLeft, image=image1, units='deg', pos=((stimSpacing/2)+offsetHorizontal+hpos1,constantOffset+offsetVertical-currentDisparity/2),size=imageSize, color=col2, colorSpace='rgb', flipHoriz=mirrorStimulus)
+                stimRight2 = visual.ImageStim(winLeft, image=image2, units='deg', pos=((-stimSpacing/2)+offsetHorizontal+hpos2,constantOffset+offsetVertical-currentDisparity/2),size=imageSize, color=col2, colorSpace='rgb', flipHoriz=mirrorStimulus)
+            stimLeft1.color = col
+            stimLeft2.color = col
+        elif mode == 'test':
+            stimRight1 = stimLeft1
+            stimRight2 = stimLeft2
+
+        #Blank screen
+        # if background == "on":
+        #     backgroundIM.draw()
+        #     borderIM.draw()
+        if mode == "test":
+            # winBack.flip()
+            winRight.flip()
+            winLeft.flip()
+
+        #drawing fixation cross, awaiting the participat's initiation of the trial
+        #backgroundIM.draw()
+        #borderIM.draw()
+        plusL.draw()
+        winLeft.flip()
+        if mode == 'test':
+            plusR.draw()
+            winRight.flip()
+        responseKey = event.waitKeys(keyList=["space","q"])
+        if "q" in responseKey:
+            trialNum = numPracticeTrials+1
+            break
+
+        #try:
+            ##try to play a tone indicating the second interval
+            #toneRecorded = sound.Sound(soundPathD)  # 500 Hz beep
+            #toneRecorded.play()
+        #except Exception as ex:
+            #don't play a sound
+            #print(ex)
+            #pass
+
+
+        #commencing the draw loop
+        startTime = core.getTime()
+        endTime = startTime + stimulusDuration
+
+        exit = False
+
+        animating_disparity = False
+        disparity_animation_clock = core.Clock()
+        disparity_animation_duration = 1.0  # seconds
+        disparity_animation_start = 0.0
+        disparity_animation_end = 0.0
+
+
+        while exit == False:
+
+            hpos1 = 0
+
+
+
+            keys = event.getKeys()
+            if len(keys):
+                print(keys)
+
+            if 's' in keys:
+                disparity_animation_duration = disparity_animation_duration+0.5
+                print("disparity_animation_duration increased to " + str(disparity_animation_duration))
+
+            if 'a' in keys:
+                disparity_animation_duration = disparity_animation_duration - 0.5
+                print("disparity_animation_duration increased to " + str(disparity_animation_duration))
+
+
+            if 'g' in keys and not animating_disparity:
+                 animating_disparity = True
+                 disparity_animation_clock.reset()
+                 disparity_animation_start = currentDisparity
+                 disparity_animation_end = 0.0
+            if animating_disparity:
+                elapsed = disparity_animation_clock.getTime()
+                progress = min(elapsed / disparity_animation_duration, 1.0)
+                eased_progress = ease_in_out(progress)
+                currentDisparity = disparity_animation_start + (disparity_animation_end - disparity_animation_start) * eased_progress
+                if progress >= 1.0:
+                    currentDisparity = disparity_animation_end
+                    animating_disparity = False
+            # if 'v' in keys:
+            #     hpos1 = hpos1+0.01
+            #     print("horizontsl offet increased to " + str(hpos1*60))
+            # if 'b' in keys:
+            #         hpos1 = hpos1-0.01
+            #         print("horizontsl offet decreased to " + str(hpos1*60))
+
+            # if 'h' in keys:
+            #         hpos1 = 0
+            #         print("horizontsl offet decreased to " + str(hpos1*60))
+
+            if 'n' in keys:
+                    currentDisparity = currentDisparity-0.01
+                    print("Vertical offet decreased to " + str(currentDisparity*60))
+            if 'm' in keys:
+                    currentDisparity = currentDisparity+0.01
+                    print("Vertical offet decreased to " + str(currentDisparity*60))
+
+            if 'r' in keys:
+                    currentDisparity = 0
+                    hpos1 = 0
+                    print("Vertical offet decreased to " + str(currentDisparity*60))
+                    print("horizontsl offet increased to " + str(hpos1*60))
+
+            if 'q' in keys:
+                    exit = True
+
+            hpos1 = 0
+
+            if 'j' in keys:
+                stimRight1.pos = ((stimSpacing/2)+offsetHorizontal+hpos1,constantOffset+offsetVertical-currentDisparity/2)
+                stimRight1.draw(winRight)
+                stimLeft1.pos = ((stimSpacing/2)-hpos1,0+currentDisparity/2)
+                stimLeft1.draw(winLeft)
+                winRight.flip()
+                winLeft.flip()
+
+
+    core.wait(2)
+
+
+
+
+
+
+core.quit()
