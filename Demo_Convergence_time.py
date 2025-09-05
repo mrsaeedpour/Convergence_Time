@@ -692,6 +692,8 @@ if practice:
 
 
             keys = event.getKeys()
+
+
             if len(keys):
                 print(keys)
 
